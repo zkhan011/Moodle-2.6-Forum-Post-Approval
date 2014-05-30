@@ -76,6 +76,12 @@ class mod_forum_mod_form extends moodleform_mod {
         $mform->addElement('header', 'subscriptionandtrackinghdr', get_string('subscriptionandtracking', 'forum'));
 
         $options = array();
+        $options[0] = get_string('no');
+        $options[1] = get_string('yes');
+        $mform->addElement('select', 'approve', get_string('requireapproval', 'forum'), $options);
+        $mform->setDefault('approve',0);
+        
+        $options = array();
         $options[FORUM_CHOOSESUBSCRIBE] = get_string('subscriptionoptional', 'forum');
         $options[FORUM_FORCESUBSCRIBE] = get_string('subscriptionforced', 'forum');
         $options[FORUM_INITIALSUBSCRIBE] = get_string('subscriptionauto', 'forum');
