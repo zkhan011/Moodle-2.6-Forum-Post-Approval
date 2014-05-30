@@ -109,6 +109,30 @@ function xmldb_forum_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2013071000, 'forum');
     }
 
+    if ($oldversion < 2014053000) { // Update ../version.php as well.
+
+        // Define field approve to be added to forum.
+        $table = new xmldb_table('forum');
+        $field = new xmldb_field('approve', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'displaywordcount');
+
+        // Conditionally launch add field approve.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Define field approved to be added to forum_posts.
+        $table = new xmldb_table('forum_posts');
+        $field = new xmldb_field('approved', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'mailnow');
+
+        // Conditionally launch add field approved.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Forum savepoint reached.
+        upgrade_mod_savepoint(true, 2014053000, 'forum');
+    }
+
     // Moodle v2.6.0 release upgrade line.
     // Put any upgrade step following this.
 
