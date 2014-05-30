@@ -369,6 +369,7 @@ $string['repliesone'] = '{$a} reply so far';
 $string['reply'] = 'Reply';
 $string['replyforum'] = 'Reply to forum';
 $string['replytouser'] = 'Use email address in reply';
+$string['requireapproval'] = 'Require approval?'; // This string is used on the Forum setting page.
 $string['resetforums'] = 'Delete posts from';
 $string['resetforumsall'] = 'Delete all posts';
 $string['resetdigests'] = 'Delete all per-user forum digest preferences';
