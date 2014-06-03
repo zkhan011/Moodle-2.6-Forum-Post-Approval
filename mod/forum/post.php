@@ -29,6 +29,7 @@ require_once($CFG->libdir.'/completionlib.php');
 
 $reply   = optional_param('reply', 0, PARAM_INT);
 $forum   = optional_param('forum', 0, PARAM_INT);
+$approve = optional_param('approve', 0, PARAM_INT);
 $edit    = optional_param('edit', 0, PARAM_INT);
 $delete  = optional_param('delete', 0, PARAM_INT);
 $prune   = optional_param('prune', 0, PARAM_INT);
@@ -47,7 +48,7 @@ $PAGE->set_url('/mod/forum/post.php', array(
         'groupid'=>$groupid,
         ));
 //these page_params will be passed as hidden variables later in the form.
-$page_params = array('reply'=>$reply, 'forum'=>$forum, 'edit'=>$edit);
+$page_params = array('reply'=>$reply, 'forum'=>$forum, 'edit'=>$edit, 'approve'=>$approve);
 
 $sitecontext = context_system::instance();
 
@@ -108,6 +109,9 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum
     }
 
     $coursecontext = context_course::instance($course->id);
+
+	// Calls the function which checks if forum requires approval and permission to approve.
+	$canapprove = forum_post_approved($forum);
 
     if (! forum_user_can_post_discussion($forum, $groupid, -1, $cm)) {
         if (!isguestuser()) {
@@ -172,6 +176,9 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum
     if (! $cm = get_coursemodule_from_instance("forum", $forum->id, $course->id)) {
         print_error('invalidcoursemodule');
     }
+
+	// Calls the function which checks if forum requires approval and permission to approve.
+	$canapprove = forum_post_approved($forum);
 
     // Ensure lang, theme, etc. is set up properly. MDL-6926
     $PAGE->set_cm($cm, $course, $forum);
@@ -482,6 +489,29 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum
     }
     echo $OUTPUT->footer();
     die;
+} else if (!empty($approve)) {// User is approving a post
+
+	if (!$post = forum_get_post_full($approve)) {
+		print_error('invalidpostid');
+	}
+	if (!$discussion = get_record("forum_discussions", "id", $post->discussion)) {
+		print_error('invalidpostpart', $edit);
+	}
+	if (!$forum = get_record("forum", "id", $discussion->forum)) {
+		print_error('unknownforumidnumber');
+	}
+	if (!$course = get_record("course", "id", $discussion->course)) {
+		print_error('unknowncourseidnumber');
+	}
+	if (!$cm = get_coursemodule_from_instance("forum", $forum->id, $course->id)) {
+		print_error('invalidcoursemoduleforum');
+	} else {
+		$modcontext = get_context_instance(CONTEXT_MODULE, $cm->id);
+	}
+	if (has_capability('mod/forum:approvepost', $modcontext)) {
+		$post->approve = 1;
+	}
+	// update_record('forum_posts',$post);
 } else {
     print_error('unknowaction');
 
@@ -525,7 +555,7 @@ file_prepare_draft_area($draftitemid, $modcontext->id, 'mod_forum', 'attachment'
 
 //load data into form NOW!
 
-if ($USER->id != $post->userid) {   // Not the original author, so add a message to the end
+if (($USER->id != $post->userid) and (!$approve)) {// Not the original author, so add a message to the end
     $data = new stdClass();
     $data->date = userdate($post->modified);
     if ($post->messageformat == FORMAT_HTML) {
@@ -699,6 +729,7 @@ if ($fromform = $mform_post->get_data()) {
         $message = '';
         $addpost = $fromform;
         $addpost->forum=$forum->id;
+		$addpost->approved = forum_post_approved($forum);
         if ($fromform->id = forum_add_new_post($addpost, $mform_post, $message)) {
 
             $timemessage = 2;
