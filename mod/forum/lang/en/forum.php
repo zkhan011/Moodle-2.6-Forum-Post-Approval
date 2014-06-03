@@ -37,6 +37,7 @@ $string['allunsubscribe'] = 'Unsubscribe from all forums';
 $string['alreadyfirstpost'] = 'This is already the first post in the discussion';
 $string['anyfile'] = 'Any file';
 $string['approve'] = 'Approve';
+$string['approvalbeforeposting'] = 'Require approval before posting';
 $string['areaattachment'] = 'Attachments';
 $string['areapost'] = 'Messages';
 $string['attachment'] = 'Attachment';

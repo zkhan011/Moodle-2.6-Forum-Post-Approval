@@ -54,6 +54,15 @@ class mod_forum_mod_form extends moodleform_mod {
         $mform->addHelpButton('type', 'forumtype', 'forum');
         $mform->setDefault('type', 'general');
 
+        // Require Approval.
+        $mform->addElement('header', 'approvalbeforeposting', get_string('approvalbeforeposting', 'forum'));
+
+        $options = array();
+        $options[0] = get_string('no');
+        $options[1] = get_string('yes');
+        $mform->addElement('select', 'approve', get_string('requireapproval', 'forum'), $options);
+        $mform->setDefault('approve',0);
+
         // Attachments and word count.
         $mform->addElement('header', 'attachmentswordcounthdr', get_string('attachmentswordcount', 'forum'));
 
@@ -73,13 +82,6 @@ class mod_forum_mod_form extends moodleform_mod {
         $mform->setDefault('displaywordcount', 0);
 
         // Subscription and tracking.
-        $mform->addElement('header', 'subscriptionandtrackinghdr', get_string('subscriptionandtracking', 'forum'));
-
-        $options = array();
-        $options[0] = get_string('no');
-        $options[1] = get_string('yes');
-        $mform->addElement('select', 'approve', get_string('requireapproval', 'forum'), $options);
-        $mform->setDefault('approve',0);
         
         $options = array();
         $options[FORUM_CHOOSESUBSCRIBE] = get_string('subscriptionoptional', 'forum');
