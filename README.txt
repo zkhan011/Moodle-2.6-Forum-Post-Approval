@@ -1,3 +1,27 @@
+Forum Post Approval INFORMATION
+===============================
+
+BGEA required an option to approve posts before they
+would use the forums. The entire Moodle directory is
+included in this GIT repository in case modification
+was required of files outside of root/mod/forum.
+
+In the current development the approval process works
+as part of the "Standard forum for general use" forum
+type. All other types are not working with this
+modification. This will be fixed as time permits.
+
+As of 3 June 2014 the files affected are:
+mod/forum/approval.php - New
+mod/forum/db/access.php
+mod/forum/db/install.xml
+mod/forum/db/upgrade.php
+mod/forum/lang/en/forum.php
+mod/forum/lib.php
+mod/forum/mod_form.php
+mod/forum/post.php
+mod/forum/version.php
+
 QUICK INSTALL
 =============
 
