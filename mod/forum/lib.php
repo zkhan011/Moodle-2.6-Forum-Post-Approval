@@ -4492,8 +4492,7 @@ function forum_add_discussion($discussion, $mform=null, $unused=null, $userid=nu
     $post->forum         = $forum->id;     // speedup
     $post->course        = $forum->course; // speedup
     $post->mailnow       = $discussion->mailnow;
-    $post_approved       = forum_post_approved($forum);
-    $post->approved      = $post_approved;
+    $post->approved      = forum_post_approved($forum);
 
     $post->id = $DB->insert_record("forum_posts", $post);
 
