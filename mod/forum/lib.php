@@ -7714,11 +7714,11 @@ function forum_get_extra_capabilities() {
  */
 function forum_post_approved($forum) {
 
-        if (! $cm = get_coursemodule_from_instance("forum", $forum->id, $forum->course)) {
-            error("Unable to get course module instance");
+        if (!$cm = get_coursemodule_from_instance("forum", $forum->id, $forum->course)) {
+            print_error("Unable to get course module instance");
         }
         if (!$context = context_module::instance($cm->id)) {
-            error("Unable to get course module context");
+            print_error("Unable to get course module context");
         }
 
         $canapprove = has_capability('mod/forum:approvepost',$context);
