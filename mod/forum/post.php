@@ -111,7 +111,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum
     $coursecontext = context_course::instance($course->id);
 
 	// Calls the function which checks if forum requires approval and permission to approve.
-	$canapprove = forum_post_approved($forum);
+	$canapprove = forum_post_approval($forum);
 
     if (! forum_user_can_post_discussion($forum, $groupid, -1, $cm)) {
         if (!isguestuser()) {
@@ -178,7 +178,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum
     }
 
 	// Calls the function which checks if forum requires approval and permission to approve.
-	$canapprove = forum_post_approved($forum);
+	$canapprove = forum_post_approval($forum);
 
     // Ensure lang, theme, etc. is set up properly. MDL-6926
     $PAGE->set_cm($cm, $course, $forum);
@@ -729,7 +729,7 @@ if ($fromform = $mform_post->get_data()) {
         $message = '';
         $addpost = $fromform;
         $addpost->forum=$forum->id;
-		$addpost->approved = forum_post_approved($forum);
+		$addpost->approved = forum_post_approval($forum);
         if ($fromform->id = forum_add_new_post($addpost, $mform_post, $message)) {
 
             $timemessage = 2;
