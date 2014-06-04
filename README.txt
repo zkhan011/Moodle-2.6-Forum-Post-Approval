@@ -7,9 +7,8 @@ included in this GIT repository in case modification
 was required of files outside of root/mod/forum.
 
 In the current development the approval process works
-as part of the "Standard forum for general use" forum
-type. All other types are not working with this
-modification. This will be fixed as time permits.
+for all but 'A single, simple discussion.'
+This will be fixed as time permits.
 
 As of 3 June 2014 the files affected are:
 mod/forum/approval.php - New
