@@ -46,14 +46,14 @@ switch ($post->approved) {
         $oldstatus = print_approval_status($post);
         //echo '<p>Confirm initial status for discussion post #'. $post->id .' is '. $oldstatus->approved .'</p>';
         $post->approved = 1;
-        $newstatus = update_approve_status($post);
+        $newstatus = update_approval_status($post);
         //echo '<p>The new approval status for discussion post #'. $post->id .' is '. $newstatus->approved .'</p>';
         break;
     case 1:
         $oldstatus = print_approval_status($post);
         //echo '<p>Confirm initial status for discussion post #'. $post->id .' is '. $oldstatus->approved .'</p>';
         $post->approved = 0;
-        $newstatus = update_approve_status($post);
+        $newstatus = update_approval_status($post);
         //echo '<p>The new approval status for discussion post #'. $post->id .' is '. $newstatus->approved .'</p>';
         break;
 }
@@ -69,7 +69,7 @@ function print_approval_status($post) {
     return $approvalstatus;      
 }
 
-function update_approve_status($post) {
+function update_approval_status($post) {
     global $CFG, $DB;
     $DB->update_record('forum_posts', $post);
     $sql = 'SELECT mdl_forum_posts.approved FROM mdl_forum_posts WHERE mdl_forum_posts.id = '. $post->id;
