@@ -3335,7 +3335,7 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         $str->edit         = get_string('edit', 'forum');
         $str->delete       = get_string('delete', 'forum');
         $str->reply        = get_string('reply', 'forum');
-        $strapprove        = get_string('approve','forum');
+        $str->approve      = get_string('approve','forum');
         $str->parent       = get_string('parent', 'forum');
         $str->pruneheading = get_string('pruneheading', 'forum');
         $str->prune        = get_string('prune', 'forum');
@@ -4422,7 +4422,7 @@ function forum_update_post($post, $mform, &$message) {
     $context    = context_module::instance($cm->id);
 
     $post->modified = time();
-    $post->approved = forum_post_approved($forum);
+    $post->approved = forum_post_approval($forum);
 
     $DB->update_record('forum_posts', $post);
 
@@ -4492,7 +4492,7 @@ function forum_add_discussion($discussion, $mform=null, $unused=null, $userid=nu
     $post->forum         = $forum->id;     // speedup
     $post->course        = $forum->course; // speedup
     $post->mailnow       = $discussion->mailnow;
-    $post->approved      = forum_post_approved($forum);
+    $post->approved      = forum_post_approval($forum);
 
     $post->id = $DB->insert_record("forum_posts", $post);
 
@@ -7711,7 +7711,7 @@ function forum_get_extra_capabilities() {
  * @param $forum - a forum object with the same attributes as a record from the forum database table
  * @return boolean - is the forum post approved
  */
-function forum_post_approved($forum) {
+function forum_post_approval($forum) {
 
         if (!$cm = get_coursemodule_from_instance("forum", $forum->id, $forum->course)) {
             print_error("Unable to get course module instance");
