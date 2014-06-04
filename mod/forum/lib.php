@@ -3584,7 +3584,11 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         // Checks to see for ability to approve posts and not own post.
         $mypost = ($discussion->userid == $USER->id);
         $canapprove = has_capability('mod/forum:approvepost', $modcontext);
-        if ($canapprove && !$mypost) {
+		// Only give option to those with the capability.
+		// Because a student could create a discussion we need the option on the first post
+		// but we don't want to confuse an instructor by showing it on the first post of a
+		// discussion they started.
+		if ($canapprove && (!$mypost || ($post->parent != '0'))) {
             $output .= '<p><strong>Status: </strong>'; // To know when updates to database are occurring.
             if ($post->approved == 0) {
                 $output .= 'Not approved <a href="'. $CFG->wwwroot .'/mod/forum/approval.php?discussionid='. $discussion->id .'&itemid='. $post->id .'&postapproved='. $post->approved .'&userid='. $USER->id .'&sesskey='. sesskey() .'">Approve</a>';
