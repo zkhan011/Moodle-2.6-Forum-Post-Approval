@@ -3597,9 +3597,7 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
 
 		// Looks to see if first post in the discussion topic. If yes, it
 		// check to see if the poster has capabilities to be approved automatically.
-		if ($post->userid != $USER->id) {
-			$confirmuser = has_capability('mod/forum:approvepost', $modcontext, $post->userid);
-		}
+		$confirmuser = has_capability('mod/forum:approvepost', $modcontext, $post->userid);
 
 		// Only give option to those with the capability and only display it for posts
 		// written by those without automatic approval.
