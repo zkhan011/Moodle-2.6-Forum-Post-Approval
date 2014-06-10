@@ -188,6 +188,7 @@ function forum_update_instance($forum, $mform) {
             $discussion->forum           = $forum->id;
             $discussion->name            = $forum->name;
             $discussion->assessed        = $forum->assessed;
+			$discussion->format          = ($forum->approve) ? $discussion->format = -1 : $discussion->format = $forum->type;
             $discussion->message         = $forum->intro;
             $discussion->messageformat   = $forum->introformat;
             $discussion->messagetrust    = true;
@@ -3243,7 +3244,10 @@ function forum_make_mail_post($course, $cm, $forum, $discussion, $post, $userfro
  */
 function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=false, $reply=false, $link=false,
                           $footer="", $highlight="", $postisread=null, $dummyifcantsee=true, $istracked=null, $return=false) {
-    global $USER, $CFG, $OUTPUT;
+    // $cm was not available for single simple discussion in add function
+	// $DB added for record update for approved status when instructor clicks
+	// Save and display.
+	global $DB, $USER, $CFG, $OUTPUT;
 
     require_once($CFG->libdir . '/filelib.php');
 
@@ -3255,6 +3259,13 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
     $post->course = $course->id;
     $post->forum  = $forum->id;
     $post->message = file_rewrite_pluginfile_urls($post->message, 'pluginfile.php', $modcontext->id, 'mod_forum', 'post', $post->id);
+	if (!$post->approved) { // If post not approved and if instructor post updates record for default approval.
+		$confirmuser = has_capability('mod/forum:approvepost', $modcontext);
+		if ($confirmuser && ($USER->id == $post->userid)) {
+			$post->approved = 1;
+			$DB->update_record('forum_posts', $post);
+		}
+	}
     if (!empty($CFG->enableplagiarism)) {
         require_once($CFG->libdir.'/plagiarismlib.php');
         $post->message .= plagiarism_get_links(array('userid' => $post->userid,
@@ -3586,18 +3597,13 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
 
 		// Looks to see if first post in the discussion topic. If yes, it
 		// check to see if the poster has capabilities to be approved automatically.
-		if ($discussion->firstpost == $post->id) {
+		if ($post->userid != $USER->id) {
 			$confirmuser = has_capability('mod/forum:approvepost', $modcontext, $post->userid);
-			if ($confirmuser == 1) {
-				$confirmed = 1;
-			}
 		}
 
-		// Only give option to those with the capability.
-		// Because a student could create a discussion we need the option on the first post
-		// but we don't want to confuse an instructor by showing it on the first post of a
-		// discussion they started.
-		if ($canapprove && ($confirmed == '')) {
+		// Only give option to those with the capability and only display it for posts
+		// written by those without automatic approval.
+		if (($canapprove && $forum->approve) && (!$confirmuser)) {
             $output .= '<p><strong>Status: </strong>'; // To know when updates to database are occurring.
             if ($post->approved == 0) {
                 $output .= 'Not approved <a href="'. $CFG->wwwroot .'/mod/forum/approval.php?discussionid='. $discussion->id .'&itemid='. $post->id .'&postapproved='. $post->approved .'&userid='. $USER->id .'&sesskey='. sesskey() .'">Approve</a>';
@@ -4505,7 +4511,14 @@ function forum_add_discussion($discussion, $mform=null, $unused=null, $userid=nu
     $post->forum         = $forum->id;     // speedup
     $post->course        = $forum->course; // speedup
     $post->mailnow       = $discussion->mailnow;
-    $post->approved      = forum_post_approval($forum);
+	if ($forum->type != 'single') {
+		$post->approved = forum_post_approval($forum);
+	} else {
+		// if the forum does not require approval then the single, simple post is approved automatically.
+		if ($forum->approve != 1) {
+			$post->approved = 1;
+		}
+	}
 
     $post->id = $DB->insert_record("forum_posts", $post);
 
@@ -4514,6 +4527,8 @@ function forum_add_discussion($discussion, $mform=null, $unused=null, $userid=nu
         $context = context_module::instance($cm->id);
         $text = file_save_draft_area_files($discussion->itemid, $context->id, 'mod_forum', 'post', $post->id,
                 mod_forum_post_form::editor_options($context, null), $post->message);
+		// When this is placed with the others above it generates an error because $cm is not present.
+		// $post->approved	= forum_post_approval($forum);
         $DB->set_field('forum_posts', 'message', $text, array('id'=>$post->id));
     }
 
@@ -7725,21 +7740,21 @@ function forum_get_extra_capabilities() {
  * @return boolean - is the forum post approved
  */
 function forum_post_approval($forum) {
-
-        if (!$cm = get_coursemodule_from_instance("forum", $forum->id, $forum->course)) {
-            print_error("Unable to get course module instance");
-        }
-        if (!$context = context_module::instance($cm->id)) {
-            print_error("Unable to get course module context");
-        }
-
-        $canapprove = has_capability('mod/forum:approvepost',$context);
-
-        if ($forum->approve) { // if the forum requires approval
-            return $canapprove;
-        } else { // if the forum does not require approval then the post is automatically approved
-            return 1;
-        }
+	
+    if (!$cm = get_coursemodule_from_instance("forum", $forum->id, $forum->course)) {
+        print_error("Unable to get course module instance");
+    }
+    if (!$context = context_module::instance($cm->id)) {
+        print_error("Unable to get course module context");
+    }
+	
+	$canapprove = has_capability('mod/forum:approvepost', $context);
+	
+	if ($forum->approve) { // if the forum requires approval
+		return $canapprove;
+	} else { // if the forum does not require approval then the post is automatically approved
+		return 1;
+	}
 }
 
 /**
