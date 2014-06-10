@@ -3602,13 +3602,15 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
 		// Only give option to those with the capability and only display it for posts
 		// written by those without automatic approval.
 		if (($canapprove && $forum->approve) && (!$confirmuser)) {
-            $output .= '<p><strong>Status: </strong>'; // To know when updates to database are occurring.
-            if ($post->approved == 0) {
-                $output .= 'Not approved <a href="'. $CFG->wwwroot .'/mod/forum/approval.php?discussionid='. $discussion->id .'&itemid='. $post->id .'&postapproved='. $post->approved .'&userid='. $USER->id .'&sesskey='. sesskey() .'">Approve</a>';
-            } else {
-                $output .= 'Approved <a href="'. $CFG->wwwroot .'/mod/forum/approval.php?discussionid='. $discussion->id .'&itemid='. $post->id .'&postapproved='. $post->approved .'&userid='. $USER->id .'&sesskey='. sesskey() .'">Unapprove</a>';
-            }
-            $output .= '</p>';
+			if ($postclass != 'shortenedpost') { // Prevents displaying on blog-like view.php. When clicked on view.php the entire topic is lost.
+	            $output .= '<p><strong>Status: </strong>'; // To know when updates to database are occurring.
+	            if ($post->approved == 0) {
+	                $output .= 'Not approved <a href="'. $CFG->wwwroot .'/mod/forum/approval.php?discussionid='. $discussion->id .'&itemid='. $post->id .'&postapproved='. $post->approved .'&userid='. $USER->id .'&sesskey='. sesskey() .'">Approve</a>';
+	            } else {
+	                $output .= 'Approved <a href="'. $CFG->wwwroot .'/mod/forum/approval.php?discussionid='. $discussion->id .'&itemid='. $post->id .'&postapproved='. $post->approved .'&userid='. $USER->id .'&sesskey='. sesskey() .'">Unapprove</a>';
+	            }
+	            $output .= '</p>';
+			}
         }
     }
 
