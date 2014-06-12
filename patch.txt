@@ -1,0 +1,660 @@
+diff --git a/README.txt b/README.txt
+index b1017df..970e53b 100644
+--- a/README.txt
++++ b/README.txt
+@@ -1,3 +1,26 @@
++Forum Post Approval INFORMATION
++===============================
++
++BGEA required an option to approve posts before they
++would use the forums. The entire Moodle directory is
++included in this GIT repository in case modification
++was required of files outside of root/mod/forum.
++
++In the current development the approval process works
++for all but 'A single, simple discussion.'
++This will be fixed as time permits.
++
++As of 3 June 2014 the files affected are:
++mod/forum/approval.php - New
++mod/forum/db/access.php
++mod/forum/db/install.xml
++mod/forum/db/upgrade.php
++mod/forum/lang/en/forum.php
++mod/forum/lib.php
++mod/forum/mod_form.php
++mod/forum/post.php
++mod/forum/version.php
++
+ QUICK INSTALL
+ =============
+ 
+diff --git a/mod/forum/approval.php b/mod/forum/approval.php
+new file mode 100644
+index 0000000..c580e91
+--- /dev/null
++++ b/mod/forum/approval.php
+@@ -0,0 +1,78 @@
++<?php
++
++// This file is part of Moodle - http://moodle.org/
++//
++// Moodle is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++//
++// Moodle is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++//
++// You should have received a copy of the GNU General Public License
++// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
++
++/**
++ * Jumps to a given relative or Moodle absolute URL.
++ * Mostly used for accessibility.
++ *
++ * @copyright 1999 Martin Dougiamas  http://dougiamas.com
++ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
++ * @package mod-forum
++ */
++
++require('../../config.php');
++require_once("lib.php");
++
++$post = new stdClass();
++$post->discussion = $_GET["discussionid"];                
++$post->id = $_GET["itemid"];
++$post->approved = $_GET["postapproved"];
++$userid = $_GET['userid'];
++$sessionkey = $_GET['sesskey'];
++
++/* echo '<ul>';
++echo '<li>Discussion ID: '. $post->discussion .'</li>';
++echo '<li>Item ID: '. $post->id .'</li>';
++echo '<li>Appoval Status: '. $post->approved .'</li>';
++echo '<li>Session ID: '. $sessionkey .'</li>';
++echo '</ul>'; */
++
++switch ($post->approved) {
++    case 0:
++        $oldstatus = print_approval_status($post);
++        //echo '<p>Confirm initial status for discussion post #'. $post->id .' is '. $oldstatus->approved .'</p>';
++        $post->approved = 1;
++        $newstatus = update_approval_status($post);
++        //echo '<p>The new approval status for discussion post #'. $post->id .' is '. $newstatus->approved .'</p>';
++        break;
++    case 1:
++        $oldstatus = print_approval_status($post);
++        //echo '<p>Confirm initial status for discussion post #'. $post->id .' is '. $oldstatus->approved .'</p>';
++        $post->approved = 0;
++        $newstatus = update_approval_status($post);
++        //echo '<p>The new approval status for discussion post #'. $post->id .' is '. $newstatus->approved .'</p>';
++        break;
++}
++
++//echo '<a href="'. $CFG->wwwroot .'/mod/forum/discuss.php?d='. $post->discussion .'">Continue</a>';
++
++redirect(new moodle_url($CFG->wwwroot .'/mod/forum/discuss.php?d='. $post->discussion));
++
++function print_approval_status($post) {
++    global $CFG, $DB;
++    $sql = 'SELECT mdl_forum_posts.approved FROM mdl_forum_posts WHERE mdl_forum_posts.id = '. $post->id;
++    $approvalstatus = $DB->get_record_sql($sql);
++    return $approvalstatus;      
++}
++
++function update_approval_status($post) {
++    global $CFG, $DB;
++    $DB->update_record('forum_posts', $post);
++    $sql = 'SELECT mdl_forum_posts.approved FROM mdl_forum_posts WHERE mdl_forum_posts.id = '. $post->id;
++    $approvalstatus = $DB->get_record_sql($sql);
++    return $approvalstatus;
++}
+diff --git a/mod/forum/db/access.php b/mod/forum/db/access.php
+index 3b67e40..5d2c8cf 100644
+--- a/mod/forum/db/access.php
++++ b/mod/forum/db/access.php
+@@ -202,6 +202,17 @@ $capabilities = array(
+         )
+     ),
+ 
++    'mod/forum:approvepost' => array(
++
++        'captype' => 'read',
++        'contextlevel' => CONTEXT_MODULE,
++        'legacy' => array(
++            'teacher' => CAP_ALLOW,
++            'editingteacher' => CAP_ALLOW,
++            'manager' => CAP_ALLOW
++        )
++    ),
++    
+     'mod/forum:splitdiscussions' => array(
+ 
+         'captype' => 'read',
+diff --git a/mod/forum/db/install.xml b/mod/forum/db/install.xml
+index 76dcc03..4f2eefd 100644
+--- a/mod/forum/db/install.xml
++++ b/mod/forum/db/install.xml
+@@ -1,5 +1,5 @@
+ <?xml version="1.0" encoding="UTF-8" ?>
+-<XMLDB PATH="mod/forum/db" VERSION="20130710" COMMENT="XMLDB file for Moodle mod/forum"
++<XMLDB PATH="mod/forum/db" VERSION="20140530" COMMENT="XMLDB file for Moodle mod/forum"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+ >
+@@ -30,6 +30,7 @@
+         <FIELD NAME="completionreplies" TYPE="int" LENGTH="9" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Nonzero if a certain number of replies are required to mark this forum complete for a user."/>
+         <FIELD NAME="completionposts" TYPE="int" LENGTH="9" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Nonzero if a certain number of posts or replies (total) are required to mark this forum complete for a user."/>
+         <FIELD NAME="displaywordcount" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
++        <FIELD NAME="approve" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+       </FIELDS>
+       <KEYS>
+         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+@@ -77,6 +78,7 @@
+         <FIELD NAME="attachment" TYPE="char" LENGTH="100" NOTNULL="true" SEQUENCE="false"/>
+         <FIELD NAME="totalscore" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+         <FIELD NAME="mailnow" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
++        <FIELD NAME="approved" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+       </FIELDS>
+       <KEYS>
+         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+@@ -167,4 +169,4 @@
+       </INDEXES>
+     </TABLE>
+   </TABLES>
+-</XMLDB>
++</XMLDB>
+\ No newline at end of file
+diff --git a/mod/forum/db/upgrade.php b/mod/forum/db/upgrade.php
+index b189aef..72fbcb0 100644
+--- a/mod/forum/db/upgrade.php
++++ b/mod/forum/db/upgrade.php
+@@ -109,6 +109,30 @@ function xmldb_forum_upgrade($oldversion) {
+         upgrade_mod_savepoint(true, 2013071000, 'forum');
+     }
+ 
++    if ($oldversion < 2014053000) { // Update ../version.php as well.
++
++        // Define field approve to be added to forum.
++        $table = new xmldb_table('forum');
++        $field = new xmldb_field('approve', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'displaywordcount');
++
++        // Conditionally launch add field approve.
++        if (!$dbman->field_exists($table, $field)) {
++            $dbman->add_field($table, $field);
++        }
++
++        // Define field approved to be added to forum_posts.
++        $table = new xmldb_table('forum_posts');
++        $field = new xmldb_field('approved', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'mailnow');
++
++        // Conditionally launch add field approved.
++        if (!$dbman->field_exists($table, $field)) {
++            $dbman->add_field($table, $field);
++        }
++
++        // Forum savepoint reached.
++        upgrade_mod_savepoint(true, 2014053000, 'forum');
++    }
++
+     // Moodle v2.6.0 release upgrade line.
+     // Put any upgrade step following this.
+ 
+diff --git a/mod/forum/lang/en/forum.php b/mod/forum/lang/en/forum.php
+index 7b6c321..5abaa10 100644
+--- a/mod/forum/lang/en/forum.php
++++ b/mod/forum/lang/en/forum.php
+@@ -36,6 +36,8 @@ $string['allsubscribe'] = 'Subscribe to all forums';
+ $string['allunsubscribe'] = 'Unsubscribe from all forums';
+ $string['alreadyfirstpost'] = 'This is already the first post in the discussion';
+ $string['anyfile'] = 'Any file';
++$string['approve'] = 'Approve';
++$string['approvalbeforeposting'] = 'Require approval before posting';
+ $string['areaattachment'] = 'Attachments';
+ $string['areapost'] = 'Messages';
+ $string['attachment'] = 'Attachment';
+@@ -181,6 +183,7 @@ $string['forum:addinstance'] = 'Add a new forum';
+ $string['forum:addnews'] = 'Add news';
+ $string['forum:addquestion'] = 'Add question';
+ $string['forum:allowforcesubscribe'] = 'Allow force subscribe';
++$string['forum:approvepost'] = 'Approve posts';
+ $string['forumauthorhidden'] = 'Author (hidden)';
+ $string['forumblockingalmosttoomanyposts'] = 'You are approaching the posting threshold. You have posted {$a->numposts} times in the last {$a->blockperiod} and the limit is {$a->blockafter} posts.';
+ $string['forumbodyhidden'] = 'This post cannot be viewed by you, probably because you have not posted in the discussion, the maximum editing time hasn\'t passed yet, the discussion has not started or the discussion has expired.';
+@@ -369,6 +372,7 @@ $string['repliesone'] = '{$a} reply so far';
+ $string['reply'] = 'Reply';
+ $string['replyforum'] = 'Reply to forum';
+ $string['replytouser'] = 'Use email address in reply';
++$string['requireapproval'] = 'Require approval?'; // This string is used on the Forum setting page.
+ $string['resetforums'] = 'Delete posts from';
+ $string['resetforumsall'] = 'Delete all posts';
+ $string['resetdigests'] = 'Delete all per-user forum digest preferences';
+diff --git a/mod/forum/lib.php b/mod/forum/lib.php
+index 1966ec1..d3db456 100644
+--- a/mod/forum/lib.php
++++ b/mod/forum/lib.php
+@@ -106,6 +106,7 @@ function forum_add_instance($forum, $mform = null) {
+         $discussion->forum         = $forum->id;
+         $discussion->name          = $forum->name;
+         $discussion->assessed      = $forum->assessed;
++        $discussion->format        = ($forum->approve) ? $discussion->format = -1 : $discussion->format = $forum->type;
+         $discussion->message       = $forum->intro;
+         $discussion->messageformat = $forum->introformat;
+         $discussion->messagetrust  = trusttext_trusted(context_course::instance($forum->course));
+@@ -187,6 +188,7 @@ function forum_update_instance($forum, $mform) {
+             $discussion->forum           = $forum->id;
+             $discussion->name            = $forum->name;
+             $discussion->assessed        = $forum->assessed;
++			$discussion->format          = ($forum->approve) ? $discussion->format = -1 : $discussion->format = $forum->type;
+             $discussion->message         = $forum->intro;
+             $discussion->messageformat   = $forum->introformat;
+             $discussion->messagetrust    = true;
+@@ -2155,6 +2157,19 @@ function forum_search_posts($searchterms, $courseid=0, $limitfrom=0, $limitnum=5
+ }
+ 
+ /**
++ * Returns a list of ratings for all posts in discussion
++ * @param object $discussion
++ * @return array of ratings or false
++ */
++function forum_get_all_discussion_approvals($discussion) {
++    global $CFG;
++    return get_records_sql("SELECT p.id, p.userid, p.approved
++                              FROM {$CFG->prefix}forum_posts p
++                             WHERE p.discussion = $discussion->id
++                             ORDER BY p.id ASC");
++}
++
++/**
+  * Returns a list of ratings for a particular post - sorted.
+  *
+  * TODO: Check if this function is actually used anywhere.
+@@ -2184,6 +2199,7 @@ function forum_get_ratings($context, $postid, $sort = "u.firstname ASC") {
+  * @param int $endtime posts created before this
+  * @param int $now used for timed discussions only
+  * @return array
++ * added p.approved to WHERE clause so that unapproved posts will not be mailed out
+  */
+ function forum_get_unmailed_posts($starttime, $endtime, $now=null) {
+     global $CFG, $DB;
+@@ -2210,6 +2226,7 @@ function forum_get_unmailed_posts($starttime, $endtime, $now=null) {
+                                  JOIN {forum_discussions} d ON d.id = p.discussion
+                                  WHERE p.mailed = :mailed
+                                  AND p.created >= :ptimestart
++								 AND p.approved = 1
+                                  AND (p.created < :ptimeend OR p.mailnow = :mailnow)
+                                  $timedsql
+                                  ORDER BY p.modified ASC", $params);
+@@ -3227,7 +3244,10 @@ function forum_make_mail_post($course, $cm, $forum, $discussion, $post, $userfro
+  */
+ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=false, $reply=false, $link=false,
+                           $footer="", $highlight="", $postisread=null, $dummyifcantsee=true, $istracked=null, $return=false) {
+-    global $USER, $CFG, $OUTPUT;
++    // $cm was not available for single simple discussion in add function
++	// $DB added for record update for approved status when instructor clicks
++	// Save and display.
++	global $DB, $USER, $CFG, $OUTPUT;
+ 
+     require_once($CFG->libdir . '/filelib.php');
+ 
+@@ -3239,6 +3259,13 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
+     $post->course = $course->id;
+     $post->forum  = $forum->id;
+     $post->message = file_rewrite_pluginfile_urls($post->message, 'pluginfile.php', $modcontext->id, 'mod_forum', 'post', $post->id);
++	if (!$post->approved) { // If post not approved and if instructor post updates record for default approval.
++		$confirmuser = has_capability('mod/forum:approvepost', $modcontext);
++		if ($confirmuser && ($USER->id == $post->userid)) {
++			$post->approved = 1;
++			$DB->update_record('forum_posts', $post);
++		}
++	}
+     if (!empty($CFG->enableplagiarism)) {
+         require_once($CFG->libdir.'/plagiarismlib.php');
+         $post->message .= plagiarism_get_links(array('userid' => $post->userid,
+@@ -3262,6 +3289,7 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
+         $cm->cache->caps['mod/forum:deleteownpost']    = has_capability('mod/forum:deleteownpost', $modcontext);
+         $cm->cache->caps['mod/forum:deleteanypost']    = has_capability('mod/forum:deleteanypost', $modcontext);
+         $cm->cache->caps['mod/forum:viewanyrating']    = has_capability('mod/forum:viewanyrating', $modcontext);
++        $cm->cache->caps['mod/forum:approvepost']      = has_capability('mod/forum:approvepost', $modcontext);
+         $cm->cache->caps['mod/forum:exportpost']       = has_capability('mod/forum:exportpost', $modcontext);
+         $cm->cache->caps['mod/forum:exportownpost']    = has_capability('mod/forum:exportownpost', $modcontext);
+     }
+@@ -3318,10 +3346,11 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
+         $str->edit         = get_string('edit', 'forum');
+         $str->delete       = get_string('delete', 'forum');
+         $str->reply        = get_string('reply', 'forum');
++        $str->approve      = get_string('approve','forum');
+         $str->parent       = get_string('parent', 'forum');
+         $str->pruneheading = get_string('pruneheading', 'forum');
+         $str->prune        = get_string('prune', 'forum');
+-        $str->displaymode     = get_user_preferences('forum_displaymode', $CFG->forum_displaymode);
++        $str->displaymode  = get_user_preferences('forum_displaymode', $CFG->forum_displaymode);
+         $str->markread     = get_string('markread', 'forum');
+         $str->markunread   = get_string('markunread', 'forum');
+     }
+@@ -3560,6 +3589,31 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
+     }
+     $output .= html_writer::tag('div', implode(' | ', $commandhtml), array('class'=>'commands'));
+ 
++    // Approval    
++    
++    if (isloggedin()) {
++        // Checks to see for ability to approve posts.
++        $canapprove = has_capability('mod/forum:approvepost', $modcontext);
++
++		// Looks to see if first post in the discussion topic. If yes, it
++		// check to see if the poster has capabilities to be approved automatically.
++		$confirmuser = has_capability('mod/forum:approvepost', $modcontext, $post->userid);
++
++		// Only give option to those with the capability and only display it for posts
++		// written by those without automatic approval.
++		if (($canapprove && $forum->approve) && (!$confirmuser)) {
++			if ($postclass != 'shortenedpost') { // Prevents displaying on blog-like view.php. When clicked on view.php the entire topic is lost.
++	            $output .= '<p><strong>Status: </strong>'; // To know when updates to database are occurring.
++	            if ($post->approved == 0) {
++	                $output .= 'Not approved <a href="'. $CFG->wwwroot .'/mod/forum/approval.php?discussionid='. $discussion->id .'&itemid='. $post->id .'&postapproved='. $post->approved .'&userid='. $USER->id .'&sesskey='. sesskey() .'">Approve</a>';
++	            } else {
++	                $output .= 'Approved <a href="'. $CFG->wwwroot .'/mod/forum/approval.php?discussionid='. $discussion->id .'&itemid='. $post->id .'&postapproved='. $post->approved .'&userid='. $USER->id .'&sesskey='. sesskey() .'">Unapprove</a>';
++	            }
++	            $output .= '</p>';
++			}
++        }
++    }
++
+     // Output link to post if required
+     if ($link) {
+         if ($post->replies == 1) {
+@@ -4387,6 +4441,7 @@ function forum_update_post($post, $mform, &$message) {
+     $context    = context_module::instance($cm->id);
+ 
+     $post->modified = time();
++    $post->approved = forum_post_approval($forum);
+ 
+     $DB->update_record('forum_posts', $post);
+ 
+@@ -4456,6 +4511,14 @@ function forum_add_discussion($discussion, $mform=null, $unused=null, $userid=nu
+     $post->forum         = $forum->id;     // speedup
+     $post->course        = $forum->course; // speedup
+     $post->mailnow       = $discussion->mailnow;
++	if ($forum->type != 'single') {
++		$post->approved = forum_post_approval($forum);
++	} else {
++		// if the forum does not require approval then the single, simple post is approved automatically.
++		if ($forum->approve != 1) {
++			$post->approved = 1;
++		}
++	}
+ 
+     $post->id = $DB->insert_record("forum_posts", $post);
+ 
+@@ -4464,6 +4527,8 @@ function forum_add_discussion($discussion, $mform=null, $unused=null, $userid=nu
+         $context = context_module::instance($cm->id);
+         $text = file_save_draft_area_files($discussion->itemid, $context->id, 'mod_forum', 'post', $post->id,
+                 mod_forum_post_form::editor_options($context, null), $post->message);
++		// When this is placed with the others above it generates an error because $cm is not present.
++		// $post->approved	= forum_post_approval($forum);
+         $DB->set_field('forum_posts', 'message', $text, array('id'=>$post->id));
+     }
+ 
+@@ -5437,6 +5502,23 @@ function forum_user_can_see_post($forum, $discussion, $post, $user=NULL, $cm=NUL
+     if (!$canviewdiscussion && !has_all_capabilities(array('moodle/user:viewdetails', 'moodle/user:readuserposts'), context_user::instance($post->userid))) {
+         return false;
+     }
++    
++    if  ($post->userid<>$user->id) {
++        if (isset($cm->cache->caps['mod/forum:approvepost'])) {
++            if (!$cm->cache->caps['mod/forum:approvepost']) {
++                if ($post->approved==0) {
++                    return false;
++                }
++            }
++        } else {
++            $modcontext = context_module::instance($cm->id);
++            if (!has_capability('mod/forum:approvepost', $modcontext, $user->id)) { 
++                if ($post->approved==0) {
++                    return false;
++                }
++            }
++        }
++    }
+ 
+     if (isset($cm->uservisible)) {
+         if (!$cm->uservisible) {
+@@ -7051,7 +7133,7 @@ function forum_get_view_actions() {
+  * @return array
+  */
+ function forum_get_post_actions() {
+-    return array('add discussion','add post','delete discussion','delete post','move discussion','prune post','update post');
++    return array('add discussion','add post','delete discussion','delete post','move discussion','prune post','update post','approve post');
+ }
+ 
+ /**
+@@ -7653,6 +7735,92 @@ function forum_get_extra_capabilities() {
+ }
+ 
+ /**
++ * Returns true if the post is approved by default (i.e. forum approval not required or the user has the capability to approve posts)
++ * @param $forum - a forum object with the same attributes as a record from the forum database table
++ * @return boolean - is the forum post approved
++ */
++function forum_post_approval($forum) {
++	
++    if (!$cm = get_coursemodule_from_instance("forum", $forum->id, $forum->course)) {
++        print_error("Unable to get course module instance");
++    }
++    if (!$context = context_module::instance($cm->id)) {
++        print_error("Unable to get course module context");
++    }
++	
++	$canapprove = has_capability('mod/forum:approvepost', $context);
++	
++	if ($forum->approve) { // if the forum requires approval
++		return $canapprove;
++	} else { // if the forum does not require approval then the post is automatically approved
++		return 1;
++	}
++}
++
++/**
++ * This function is used to extend the global navigation by add forum nodes if there
++ * is relevant content.
++ *
++ * @param navigation_node $navref
++ * @param stdClass $course
++ * @param stdClass $module
++ * @param stdClass $cm
++ */
++/*************************************************
++function forum_extend_navigation($navref, $course, $module, $cm) {
++    global $CFG, $OUTPUT, $USER;
++
++    $limit = 5;
++
++    $discussions = forum_get_discussions($cm,"d.timemodified DESC", false, -1, $limit);
++    $discussioncount = forum_get_discussions_count($cm);
++    if (!is_array($discussions) || count($discussions)==0) {
++        return;
++    }
++    $discussionnode = $navref->add(get_string('discussions', 'forum').' ('.$discussioncount.')');
++    $discussionnode->mainnavonly = true;
++    $discussionnode->display = false; // Do not display on navigation (only on navbar)
++
++    foreach ($discussions as $discussion) {
++        $icon = new pix_icon('i/feedback', '');
++        $url = new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->discussion));
++        $discussionnode->add($discussion->subject, $url, navigation_node::TYPE_SETTING, null, null, $icon);
++    }
++
++    if ($discussioncount > count($discussions)) {
++        if (!empty($navref->action)) {
++            $url = $navref->action;
++        } else {
++            $url = new moodle_url('/mod/forum/view.php', array('id'=>$cm->id));
++        }
++        $discussionnode->add(get_string('viewalldiscussions', 'forum'), $url, navigation_node::TYPE_SETTING, null, null, $icon);
++    }
++
++    $index = 0;
++    $recentposts = array();
++    $lastlogin = time() - COURSE_MAX_RECENT_PERIOD;
++    if (!isguestuser() and !empty($USER->lastcourseaccess[$course->id])) {
++        if ($USER->lastcourseaccess[$course->id] > $lastlogin) {
++            $lastlogin = $USER->lastcourseaccess[$course->id];
++        }
++    }
++    forum_get_recent_mod_activity($recentposts, $index, $lastlogin, $course->id, $cm->id);
++
++    if (is_array($recentposts) && count($recentposts)>0) {
++        $recentnode = $navref->add(get_string('recentactivity').' ('.count($recentposts).')');
++        $recentnode->mainnavonly = true;
++        $recentnode->display = false;
++        foreach ($recentposts as $post) {
++            $icon = new pix_icon('i/feedback', '');
++            $url = new moodle_url('/mod/forum/discuss.php', array('d'=>$post->content->discussion));
++            $title = $post->content->subject."\n".userdate($post->timestamp, get_string('strftimerecent', 'langconfig'))."\n".$post->user->firstname.' '.$post->user->lastname;
++            $recentnode->add($title, $url, navigation_node::TYPE_SETTING, null, null, $icon);
++        }
++    }
++}
++*************************/
++
++/**
+  * Adds module specific settings to the settings block
+  *
+  * @param settings_navigation $settings The settings navigation object
+diff --git a/mod/forum/mod_form.php b/mod/forum/mod_form.php
+index 4003cc4..aff3336 100644
+--- a/mod/forum/mod_form.php
++++ b/mod/forum/mod_form.php
+@@ -54,6 +54,15 @@ class mod_forum_mod_form extends moodleform_mod {
+         $mform->addHelpButton('type', 'forumtype', 'forum');
+         $mform->setDefault('type', 'general');
+ 
++        // Require Approval.
++        $mform->addElement('header', 'approvalbeforeposting', get_string('approvalbeforeposting', 'forum'));
++
++        $options = array();
++        $options[0] = get_string('no');
++        $options[1] = get_string('yes');
++        $mform->addElement('select', 'approve', get_string('requireapproval', 'forum'), $options);
++        $mform->setDefault('approve',0);
++
+         // Attachments and word count.
+         $mform->addElement('header', 'attachmentswordcounthdr', get_string('attachmentswordcount', 'forum'));
+ 
+@@ -73,8 +82,7 @@ class mod_forum_mod_form extends moodleform_mod {
+         $mform->setDefault('displaywordcount', 0);
+ 
+         // Subscription and tracking.
+-        $mform->addElement('header', 'subscriptionandtrackinghdr', get_string('subscriptionandtracking', 'forum'));
+-
++        
+         $options = array();
+         $options[FORUM_CHOOSESUBSCRIBE] = get_string('subscriptionoptional', 'forum');
+         $options[FORUM_FORCESUBSCRIBE] = get_string('subscriptionforced', 'forum');
+diff --git a/mod/forum/post.php b/mod/forum/post.php
+index e3d3dec..6a4570c 100644
+--- a/mod/forum/post.php
++++ b/mod/forum/post.php
+@@ -29,6 +29,7 @@ require_once($CFG->libdir.'/completionlib.php');
+ 
+ $reply   = optional_param('reply', 0, PARAM_INT);
+ $forum   = optional_param('forum', 0, PARAM_INT);
++$approve = optional_param('approve', 0, PARAM_INT);
+ $edit    = optional_param('edit', 0, PARAM_INT);
+ $delete  = optional_param('delete', 0, PARAM_INT);
+ $prune   = optional_param('prune', 0, PARAM_INT);
+@@ -47,7 +48,7 @@ $PAGE->set_url('/mod/forum/post.php', array(
+         'groupid'=>$groupid,
+         ));
+ //these page_params will be passed as hidden variables later in the form.
+-$page_params = array('reply'=>$reply, 'forum'=>$forum, 'edit'=>$edit);
++$page_params = array('reply'=>$reply, 'forum'=>$forum, 'edit'=>$edit, 'approve'=>$approve);
+ 
+ $sitecontext = context_system::instance();
+ 
+@@ -109,6 +110,9 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum
+ 
+     $coursecontext = context_course::instance($course->id);
+ 
++	// Calls the function which checks if forum requires approval and permission to approve.
++	$canapprove = forum_post_approval($forum);
++
+     if (! forum_user_can_post_discussion($forum, $groupid, -1, $cm)) {
+         if (!isguestuser()) {
+             if (!is_enrolled($coursecontext)) {
+@@ -173,6 +177,9 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum
+         print_error('invalidcoursemodule');
+     }
+ 
++	// Calls the function which checks if forum requires approval and permission to approve.
++	$canapprove = forum_post_approval($forum);
++
+     // Ensure lang, theme, etc. is set up properly. MDL-6926
+     $PAGE->set_cm($cm, $course, $forum);
+ 
+@@ -482,6 +489,29 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum
+     }
+     echo $OUTPUT->footer();
+     die;
++} else if (!empty($approve)) {// User is approving a post
++
++	if (!$post = forum_get_post_full($approve)) {
++		print_error('invalidpostid');
++	}
++	if (!$discussion = get_record("forum_discussions", "id", $post->discussion)) {
++		print_error('invalidpostpart', $edit);
++	}
++	if (!$forum = get_record("forum", "id", $discussion->forum)) {
++		print_error('unknownforumidnumber');
++	}
++	if (!$course = get_record("course", "id", $discussion->course)) {
++		print_error('unknowncourseidnumber');
++	}
++	if (!$cm = get_coursemodule_from_instance("forum", $forum->id, $course->id)) {
++		print_error('invalidcoursemoduleforum');
++	} else {
++		$modcontext = get_context_instance(CONTEXT_MODULE, $cm->id);
++	}
++	if (has_capability('mod/forum:approvepost', $modcontext)) {
++		$post->approve = 1;
++	}
++	// update_record('forum_posts',$post);
+ } else {
+     print_error('unknowaction');
+ 
+@@ -525,7 +555,7 @@ file_prepare_draft_area($draftitemid, $modcontext->id, 'mod_forum', 'attachment'
+ 
+ //load data into form NOW!
+ 
+-if ($USER->id != $post->userid) {   // Not the original author, so add a message to the end
++if (($USER->id != $post->userid) and (!$approve)) {// Not the original author, so add a message to the end
+     $data = new stdClass();
+     $data->date = userdate($post->modified);
+     if ($post->messageformat == FORMAT_HTML) {
+@@ -699,6 +729,7 @@ if ($fromform = $mform_post->get_data()) {
+         $message = '';
+         $addpost = $fromform;
+         $addpost->forum=$forum->id;
++		$addpost->approved = forum_post_approval($forum);
+         if ($fromform->id = forum_add_new_post($addpost, $mform_post, $message)) {
+ 
+             $timemessage = 2;
+diff --git a/mod/forum/version.php b/mod/forum/version.php
+index de7944d..4e09d35 100644
+--- a/mod/forum/version.php
++++ b/mod/forum/version.php
+@@ -25,7 +25,8 @@
+ 
+ defined('MOODLE_INTERNAL') || die();
+ 
+-$module->version   = 2013110500;       // The current module version (Date: YYYYMMDDXX)
++//$module->version   = 2013110500;       // The current module version (Date: YYYYMMDDXX)
++$module->version   = 2014053100;       // The current module version (Date: YYYYMMDDXX)
+ $module->requires  = 2013110500;       // Requires this Moodle version
+ $module->component = 'mod_forum';      // Full name of the plugin (used for diagnostics)
+ $module->cron      = 60;

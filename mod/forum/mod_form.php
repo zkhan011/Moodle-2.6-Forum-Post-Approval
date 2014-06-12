@@ -82,6 +82,7 @@ class mod_forum_mod_form extends moodleform_mod {
         $mform->setDefault('displaywordcount', 0);
 
         // Subscription and tracking.
+        $mform->addElement('header', 'subscriptionandtrackinghdr', get_string('subscriptionandtracking', 'forum'));
         
         $options = array();
         $options[FORUM_CHOOSESUBSCRIBE] = get_string('subscriptionoptional', 'forum');
